@@ -31,7 +31,7 @@ export type CacheTTLOptions = {
     // The maximum time an item is cached in seconds.
     maxTtl: number
     // The maximum time the cache should be used when the re-fetch from the origin fails.
-    maxTtlIfError: number
+    maxTtlIfError?: number
   }
 }
 
@@ -373,18 +373,21 @@ export abstract class HTTPDataSource<TContext = any> extends DataSource {
             ttl: request.requestCache.maxTtl,
           })
           .catch((err) => this.logger?.error(err))
-        this.cache
-          .set(`staleIfError:${cacheKey}`, cachedResponse, {
-            ttl: request.requestCache.maxTtl + request.requestCache.maxTtlIfError,
-          })
-          .catch((err) => this.logger?.error(err))
+        
+        if (request.requestCache.maxTtlIfError) {
+          this.cache
+            .set(`staleIfError:${cacheKey}`, cachedResponse, {
+              ttl: request.requestCache.maxTtl + request.requestCache.maxTtlIfError,
+            })
+            .catch((err) => this.logger?.error(err))
+        }
       }
       return response
     } catch (error: any) {
       this.onError?.(error, request)
 
       // in case of an error we try to respond with a stale result from the stale-if-error cache
-      if (request.requestCache) {
+      if (request.requestCache?.maxTtlIfError) {
         const cacheItem = await this.cache.get(`staleIfError:${cacheKey}`)
 
         if (cacheItem) {

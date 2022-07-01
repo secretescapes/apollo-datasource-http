@@ -1312,6 +1312,117 @@ test('Should respond with stale-if-error cache on origin error', async (t) => {
   t.is(cacheMap.size, 1)
 })
 
+test('Should not respond with stale-if-error cache on origin error if maxTtlIfError was not set', async (t) => {
+  t.plan(12)
+
+  const path = '/'
+
+  const wanted = { name: 'foo' }
+
+  let reqCount = 0
+
+  const server = http.createServer((req, res) => {
+    t.is(req.method, 'GET')
+    console.log(`----- ${reqCount} -----`)
+    if (reqCount === 0) {
+      res.writeHead(200, {
+        'content-type': 'application/json',
+      })
+      res.write(JSON.stringify(wanted))
+    } else {
+      res.writeHead(500)
+    }
+
+    res.end()
+    res.socket?.unref()
+    reqCount++
+  })
+
+  t.teardown(server.close.bind(server))
+
+  server.listen()
+
+  const baseURL = getBaseUrlOf(server)
+
+  let dataSource = new (class extends HTTPDataSource {
+    constructor() {
+      super(baseURL)
+    }
+    getFoo() {
+      return this.get(path, {
+        requestCache: {
+          maxTtl: 10,
+        },
+      })
+    }
+  })()
+
+  const cacheMap = new Map<string, string>()
+  const datasSourceConfig = {
+    context: {
+      a: 1,
+    },
+    cache: {
+      async delete(key: string) {
+        return cacheMap.delete(key)
+      },
+      async get(key: string) {
+        return cacheMap.get(key)
+      },
+      async set(key: string, value: string) {
+        cacheMap.set(key, value)
+      },
+    },
+  }
+
+  dataSource.initialize(datasSourceConfig)
+
+  let response = await dataSource.getFoo()
+  t.false(response.isFromCache)
+  t.false(response.memoized)
+  t.is(response.maxTtl, 10)
+
+  t.deepEqual(response.body, wanted)
+
+  t.is(cacheMap.size, 1)
+
+  cacheMap.delete(baseURL + path) // ttl is up
+
+  // still get memoized response
+  response = await dataSource.getFoo()
+  t.false(response.isFromCache)
+  t.true(response.memoized)
+  t.is(response.maxTtl, 10)
+
+  t.deepEqual(response.body, wanted)
+
+
+  dataSource = new (class extends HTTPDataSource {
+    constructor() {
+      super(baseURL)
+    }
+    getFoo() {
+      return this.get(path, {
+        requestCache: {
+          maxTtl: 10,
+        },
+      })
+    }
+  })()
+
+  dataSource.initialize(datasSourceConfig)
+
+  await t.throwsAsync(
+    dataSource.getFoo(),
+    {
+      instanceOf: Error,
+      code: 500,
+      message: 'Response code 500 (Internal Server Error)',
+    },
+    'Server error',
+  )
+})
+
 test('Should not cache POST requests by default', async (t) => {
   t.plan(6)
 
