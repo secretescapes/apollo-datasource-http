@@ -1323,7 +1323,7 @@ test('Should not respond with stale-if-error cache on origin error if maxTtlIfEr
 
   const server = http.createServer((req, res) => {
     t.is(req.method, 'GET')
-    console.log(`----- ${reqCount} -----`)
+
     if (reqCount === 0) {
       res.writeHead(200, {
         'content-type': 'application/json',
@@ -1346,14 +1346,16 @@ test('Should not respond with stale-if-error cache on origin error if maxTtlIfEr
 
   let dataSource = new (class extends HTTPDataSource {
     constructor() {
-      super(baseURL)
+      super(baseURL, {
+        requestOptions: {
+          requestCache: {
+            maxTtl: 10,
+          },
+        }
+      })
     }
     getFoo() {
-      return this.get(path, {
-        requestCache: {
-          maxTtl: 10,
-        },
-      })
+      return this.get(path)
     }
   })()
 
@@ -1399,14 +1401,16 @@ test('Should not respond with stale-if-error cache on origin error if maxTtlIfEr
 
   dataSource = new (class extends HTTPDataSource {
     constructor() {
-      super(baseURL)
+      super(baseURL, {
+        requestOptions: {
+          requestCache: {
+            maxTtl: 10,
+          },
+        }
+      })
     }
     getFoo() {
-      return this.get(path, {
-        requestCache: {
-          maxTtl: 10,
-        },
-      })
+      return this.get(path)
     }
   })()
 
