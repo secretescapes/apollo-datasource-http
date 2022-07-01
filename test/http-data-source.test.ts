@@ -1349,7 +1349,7 @@ test('Should not respond with stale-if-error cache on origin error if maxTtlIfEr
       super(baseURL, {
         requestOptions: {
           requestCache: {
-            maxTtl: 10,
+            maxTtl: 10
           },
         }
       })
@@ -1404,7 +1404,7 @@ test('Should not respond with stale-if-error cache on origin error if maxTtlIfEr
       super(baseURL, {
         requestOptions: {
           requestCache: {
-            maxTtl: 10,
+            maxTtl: 10
           },
         }
       })
